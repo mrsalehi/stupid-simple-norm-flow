@@ -25,7 +25,7 @@ class PlanarFlow(nn.Module):
 
 
 class RadialFlow(nn.Module):
-    def __init__(self, D, nonlinearity):
+    def __init__(self, D, activation=F.elu):
         super().__init__()
 
         self.linear = nn.Linear(in_features=D, out_features=1)
