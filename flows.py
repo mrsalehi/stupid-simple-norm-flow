@@ -17,10 +17,11 @@ class PlanarFlow(nn.Module):
 
     def forward(self, z: torch.Tensor):
         lin = self.activation(z @ self.w + b).unsqueeze(1)
-        phi = F_prime(lin) * w 
+        f = z + u * self.activation(lin)
+        phi = F_prime(lin) * w  # TODO: change F_prime
         log_det = torch.log(1 + phi @ u)
 
-        return log_det, z + u * self.activation(lin)
+        return f, log_det
 
 
 class RadialFlow(nn.Module):
@@ -32,6 +33,7 @@ class RadialFlow(nn.Module):
         self.z0 = nn.Parameter(torch.empty(D), requires_grad=True)
         self.log_alpha = nn.Paramter(torch.empty(1), requires_grad=True)
         self.beta = nn.Paramter(torch.empty(1), requires_grad=True)
+        self.D = D
 
         nn.init.xavier_normal_(self.z)
         nn.init.xavier_normal_(self.b)
@@ -42,6 +44,13 @@ class RadialFlow(nn.Module):
 
 
     def forward(self, z: torch.Tensor):
-        z_ = z - z0
-        return z + beta * (1 / (torch.exp(self.log_alpha) + torch.norm(z_))) *  (z_ - self.z0)
+        z_sub = z - z0
+        alpha = torch.exp(self.log_alpha)
+        r = torch.norm(z_sub)
+        h = 1 / (alpha + r)
+        f = z + self.beta * h * z_sub
+        log_det = (self.D - 1) * torch.log(1 + self.beta * h) + \
+            torch.log(1 + self.beta * h + self.beta - self.beta * r / (alpha + r) ** 2)
+
+        return f, log_det
        
