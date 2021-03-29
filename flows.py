@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utils import ACTIVATION_DERIVATIVES
+import math
 
 class PlanarFlow(nn.Module):
     def __init__(self, D, activation=F.elu):
@@ -10,16 +12,17 @@ class PlanarFlow(nn.Module):
         self.b = nn.Parameter(torch.empty(1))
         self.u = nn.Parameter(torch.empty(D))
         self.activation = activation
+        self.activation_derivative = ACTIVATION_DERIVATIVES[activation]
 
-        nn.init.xavier_normal_(self.z)
-        nn.init.xavier_normal_(self.b)
-        nn.init.xavier_normal_(self.u.data) 
+        nn.init.normal_(self.w)
+        nn.init.normal_(self.u)
+        nn.init.normal_(self.b)
 
     def forward(self, z: torch.Tensor):
-        lin = self.activation(z @ self.w + b).unsqueeze(1)
-        f = z + u * self.activation(lin)
-        phi = F_prime(lin) * w  # TODO: change F_prime
-        log_det = torch.log(1 + phi @ u)
+        lin = (z @ self.w + self.b).unsqueeze(1)  # shape: (B, 1)
+        f = z + self.u * self.activation(lin)  # shape: (B, D)
+        phi = self.activation_derivative(lin) * self.w  # shape: (B, D)
+        log_det = torch.log(torch.abs(1 + phi @ self.u) + 1e-4)  # shape: (B, 1)
 
         return f, log_det
 
@@ -28,23 +31,20 @@ class RadialFlow(nn.Module):
     def __init__(self, D, activation=F.elu):
         super().__init__()
 
-        self.linear = nn.Linear(in_features=D, out_features=1)
-        self.u = nn.Parameter(torch.empty(D,), requires_grad=True)
-        self.z0 = nn.Parameter(torch.empty(D), requires_grad=True)
-        self.log_alpha = nn.Paramter(torch.empty(1), requires_grad=True)
-        self.beta = nn.Paramter(torch.empty(1), requires_grad=True)
+        self.z0 = nn.Parameter(torch.empty(D))
+        self.log_alpha = nn.Parameter(torch.empty(1))
+        self.beta = nn.Parameter(torch.empty(1))
+        self.activation = activation
+        self.activation_derivative = ACTIVATION_DERIVATIVES[activation]
         self.D = D
 
-        nn.init.xavier_normal_(self.z)
-        nn.init.xavier_normal_(self.b)
-        nn.init.xavier_normal_(self.u.data)
-        nn.init.normal_(self.z0.data) 
-        nn.init.uniform_(self.log_alpha)
-        nn.init.uniform_(self.beta)
+        nn.init.normal_(self.z0) 
+        nn.init.normal_(self.log_alpha)
+        nn.init.normal_(self.beta)
 
 
     def forward(self, z: torch.Tensor):
-        z_sub = z - z0
+        z_sub = z - self.z0
         alpha = torch.exp(self.log_alpha)
         r = torch.norm(z_sub)
         h = 1 / (alpha + r)
