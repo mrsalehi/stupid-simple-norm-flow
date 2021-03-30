@@ -5,7 +5,7 @@ from utils import ACTIVATION_DERIVATIVES
 import math
 
 class PlanarFlow(nn.Module):
-    def __init__(self, D, activation=F.elu):
+    def __init__(self, D, activation=torch.tanh):
         super().__init__()
         self.D = D
         self.w = nn.Parameter(torch.empty(D))
@@ -22,13 +22,17 @@ class PlanarFlow(nn.Module):
         lin = (z @ self.w + self.b).unsqueeze(1)  # shape: (B, 1)
         f = z + self.u * self.activation(lin)  # shape: (B, D)
         phi = self.activation_derivative(lin) * self.w  # shape: (B, D)
-        log_det = torch.log(torch.abs(1 + phi @ self.u) + 1e-4)  # shape: (B, 1)
+        log_det = torch.log(torch.abs(1 + phi @ self.u) + 1e-4) # shape: (B,)
+        # if torch.isnan(log_det.clone().detach()):
+        #     print('\t', lin)
+        #     print('\t', f)
+        #     print('\t', self.activation_derivative(lin))
 
         return f, log_det
 
 
 class RadialFlow(nn.Module):
-    def __init__(self, D, activation=F.elu):
+    def __init__(self, D, activation=torch.tanh):
         super().__init__()
 
         self.z0 = nn.Parameter(torch.empty(D))
@@ -53,4 +57,3 @@ class RadialFlow(nn.Module):
             torch.log(1 + self.beta * h + self.beta - self.beta * r / (alpha + r) ** 2)
 
         return f, log_det
-       
