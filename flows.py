@@ -23,10 +23,7 @@ class PlanarFlow(nn.Module):
         f = z + self.u * self.activation(lin)  # shape: (B, D)
         phi = self.activation_derivative(lin) * self.w  # shape: (B, D)
         log_det = torch.log(torch.abs(1 + phi @ self.u) + 1e-4) # shape: (B,)
-        # if torch.isnan(log_det.clone().detach()):
-        #     print('\t', lin)
-        #     print('\t', f)
-        #     print('\t', self.activation_derivative(lin))
+        
 
         return f, log_det
 
